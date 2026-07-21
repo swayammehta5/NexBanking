@@ -1,0 +1,13 @@
+[2026-07-09 10:38:11] [32minfo[39m: 🚀 NexBanking API running on http://localhost:5000
+[2026-07-09 10:38:11] [32minfo[39m: 🌍 Environment: development
+[2026-07-09 10:38:12] [32minfo[39m: ✅ MongoDB Atlas Connected: ac-astrsol-shard-00-02.mlyrwfe.mongodb.net
+[2026-07-09 10:41:02] [32minfo[39m: User logged in: mehtaswayam555@gmail.com
+[2026-07-09 10:41:50] [32minfo[39m: Deposit: mehtaswayam555@gmail.com +$2100
+[2026-07-09 10:44:04] [32minfo[39m: Deposit: mehtaswayam555@gmail.com +$1000
+[2026-07-09 10:44:21] [32minfo[39m: Withdrawal: mehtaswayam555@gmail.com -$500
+[2026-07-09 11:29:43] [33mwarn[39m: MongoDB disconnected. Attempting to reconnect...
+[2026-07-09 11:29:54] [32minfo[39m: MongoDB reconnected
+[2026-07-21 15:12:56] [32minfo[39m: 🚀 NexBanking API running on http://localhost:5000
+[2026-07-21 15:12:56] [32minfo[39m: 🌍 Environment: development
+[2026-07-21 15:12:57] [32minfo[39m: ✅ MongoDB Atlas Connected: ac-astrsol-shard-00-01.mlyrwfe.mongodb.net
+[2026-07-21 15:14:16] [32minfo[39m: User logged in: mehtaswayam555@gmail.com
