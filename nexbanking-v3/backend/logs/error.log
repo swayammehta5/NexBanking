@@ -1,0 +1,6 @@
+[2026-08-23 00:49:36] [31merror[39m: 404 - Route not found: / - / - GET
+[2026-08-23 00:49:37] [31merror[39m: 404 - Route not found: /favicon.ico - /favicon.ico - GET
+[2026-09-10 14:16:48] [31merror[39m: PostgreSQL connection failed: Can't reach database server at `localhost:5432`
+
+Please make sure your database server is running at `localhost:5432`.
+[2026-09-10 14:59:49] [31merror[39m: 404 - Route not found: /favicon.ico - /favicon.ico - GET

@@ -4,25 +4,29 @@ const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
-  // Mongoose bad ObjectId
-  if (err.name === 'CastError') {
-    statusCode = 400;
-    message = 'Invalid resource ID format';
+  // Prisma: record not found
+  if (err.code === 'P2025') {
+    statusCode = 404;
+    message = 'Resource not found';
   }
 
-  // Mongoose duplicate key
-  if (err.code === 11000) {
+  // Prisma: unique constraint
+  if (err.code === 'P2002') {
     statusCode = 400;
-    const field = Object.keys(err.keyValue)[0];
-    message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`;
+    const fields = err.meta?.target;
+    const field = Array.isArray(fields) ? fields[0] : 'Field';
+    message = `${String(field).charAt(0).toUpperCase()}${String(field).slice(1)} already exists`;
   }
 
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
+  // Prisma: foreign key / invalid data
+  if (err.code === 'P2003') {
     statusCode = 400;
-    message = Object.values(err.errors)
-      .map((e) => e.message)
-      .join(', ');
+    message = 'Invalid related resource reference';
+  }
+
+  if (err.name === 'PrismaClientValidationError') {
+    statusCode = 400;
+    message = 'Invalid data provided';
   }
 
   // JWT errors
@@ -33,11 +37,19 @@ const errorHandler = (err, req, res, next) => {
 
   if (process.env.NODE_ENV === 'development') {
     logger.error(`${statusCode} - ${message} - ${req.originalUrl} - ${req.method}`);
+  } else {
+    logger.error(`${statusCode} - ${req.originalUrl} - ${req.method}`);
   }
+
+  // Never expose credentials, SQL, or hashes
+  const safeMessage =
+    process.env.NODE_ENV === 'production' && statusCode === 500
+      ? 'Internal Server Error'
+      : message;
 
   res.status(statusCode).json({
     success: false,
-    message,
+    message: safeMessage,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     timestamp: new Date().toISOString(),
   });

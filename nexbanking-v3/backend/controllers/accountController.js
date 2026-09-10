@@ -1,37 +1,30 @@
-const Account     = require('../models/Account');
-const Transaction = require('../models/Transaction');
-const { sendSuccess, sendError }       = require('../utils/apiResponse');
+const { prisma } = require('../config/db');
+const { sendSuccess, sendError } = require('../utils/apiResponse');
 const { generateAccountStats, groupTransactionsByMonth } = require('../utils/bankingUtils');
+const { serialize } = require('../utils/serializers');
 
-/**
- * @desc  Get account details
- * @route GET /api/account
- */
 const getAccount = async (req, res) => {
   try {
-    const account = await Account.findOne({ userId: req.user._id });
+    const account = await prisma.account.findUnique({ where: { userId: req.user.id } });
     if (!account) return sendError(res, 404, 'Account not found');
-    sendSuccess(res, 200, 'Account retrieved', { account });
+    sendSuccess(res, 200, 'Account retrieved', { account: serialize(account) });
   } catch {
     sendError(res, 500, 'Failed to retrieve account');
   }
 };
 
-/**
- * @desc  Get account stats + chart data for dashboard
- * @route GET /api/account/stats
- */
 const getAccountStats = async (req, res) => {
   try {
-    const account = await Account.findOne({ userId: req.user._id });
+    const account = await prisma.account.findUnique({ where: { userId: req.user.id } });
     if (!account) return sendError(res, 404, 'Account not found');
 
-    const transactions = await Transaction.find({ accountId: account._id })
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .lean();
+    const transactions = await prisma.transaction.findMany({
+      where: { accountId: account.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
 
-    const stats     = generateAccountStats(account, transactions);
+    const stats = generateAccountStats(account, transactions);
     const chartData = groupTransactionsByMonth(transactions);
 
     sendSuccess(res, 200, 'Account stats retrieved', { stats, chartData });

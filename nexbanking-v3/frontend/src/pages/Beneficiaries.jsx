@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Star, Plus, Pencil, Trash2, Search, X, Building2, BookUser } from 'lucide-react';
+import { Star, Plus, Pencil, Trash2, Search, X, BookUser } from 'lucide-react';
 import api from '../services/api';
 import { formatDate } from '../utils/format';
 import { PageLoader, EmptyState, Input } from '../components/ui';
 import toast from 'react-hot-toast';
 
-const EMPTY_FORM = { name: '', accountNumber: '', bankName: '', ifscCode: '', nickname: '' };
+const EMPTY_FORM = { name: '', accountNumber: '', nickname: '' };
 
 export default function Beneficiaries() {
   const [beneficiaries, setBeneficiaries] = useState([]);
@@ -32,7 +32,6 @@ export default function Beneficiaries() {
     const e = {};
     if (!form.name.trim())          e.name          = 'Name is required';
     if (!form.accountNumber.trim()) e.accountNumber = 'Account number is required';
-    if (!form.bankName.trim())      e.bankName      = 'Bank name is required';
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -40,7 +39,7 @@ export default function Beneficiaries() {
   const openAdd  = () => { setEditing(null); setForm(EMPTY_FORM); setErrors({}); setShowModal(true); };
   const openEdit = (b) => {
     setEditing(b);
-    setForm({ name: b.name, accountNumber: b.accountNumber, bankName: b.bankName, ifscCode: b.ifscCode || '', nickname: b.nickname || '' });
+    setForm({ name: b.name, accountNumber: b.accountNumber, nickname: b.nickname || '' });
     setErrors({});
     setShowModal(true);
   };
@@ -48,13 +47,21 @@ export default function Beneficiaries() {
   const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
+    const payload = {
+      ...form,
+      name: form.name.trim(),
+      accountNumber: form.accountNumber.trim(),
+      nickname: form.nickname?.trim() || null,
+    };
     try {
       if (editing) {
-        const res = await api.put(`/beneficiaries/${editing._id}`, form);
-        setBeneficiaries(b => b.map(x => x._id === editing._id ? res.data.data.beneficiary : x));
+        const editId = editing._id || editing.id;
+        const res = await api.put(`/beneficiaries/${editId}`, payload);
+        const updated = res.data.data.beneficiary;
+        setBeneficiaries(b => b.map(x => (x._id || x.id) === editId ? updated : x));
         toast.success('Beneficiary updated');
       } else {
-        const res = await api.post('/beneficiaries', form);
+        const res = await api.post('/beneficiaries', payload);
         setBeneficiaries(b => [res.data.data.beneficiary, ...b]);
         toast.success('Beneficiary added');
       }
@@ -68,7 +75,7 @@ export default function Beneficiaries() {
     if (!window.confirm(`Delete ${name}?`)) return;
     try {
       await api.delete(`/beneficiaries/${id}`);
-      setBeneficiaries(b => b.filter(x => x._id !== id));
+      setBeneficiaries(b => b.filter(x => (x._id || x.id) !== id));
       toast.success('Beneficiary deleted');
     } catch { toast.error('Failed to delete'); }
   };
@@ -76,7 +83,8 @@ export default function Beneficiaries() {
   const handleFavorite = async (id) => {
     try {
       const res = await api.patch(`/beneficiaries/${id}/favorite`);
-      setBeneficiaries(b => b.map(x => x._id === id ? res.data.data.beneficiary : x));
+      const updated = res.data.data.beneficiary;
+      setBeneficiaries(b => b.map(x => (x._id || x.id) === id ? updated : x));
     } catch { toast.error('Failed to update favorite'); }
   };
 
@@ -126,7 +134,7 @@ export default function Beneficiaries() {
                 ⭐ Favourites
               </p>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {favorites.map(b => <BeneficiaryCard key={b._id} b={b} onEdit={openEdit} onDelete={handleDelete} onFavorite={handleFavorite} />)}
+                {favorites.map(b => <BeneficiaryCard key={b._id || b.id} b={b} onEdit={openEdit} onDelete={handleDelete} onFavorite={handleFavorite} />)}
               </div>
             </section>
           )}
@@ -138,7 +146,7 @@ export default function Beneficiaries() {
                 <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>All</p>
               )}
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {others.map(b => <BeneficiaryCard key={b._id} b={b} onEdit={openEdit} onDelete={handleDelete} onFavorite={handleFavorite} />)}
+                {others.map(b => <BeneficiaryCard key={b._id || b.id} b={b} onEdit={openEdit} onDelete={handleDelete} onFavorite={handleFavorite} />)}
               </div>
             </section>
           )}
@@ -160,11 +168,12 @@ export default function Beneficiaries() {
               <Input label="Full Name *" value={form.name} onChange={e => set('name', e.target.value)} placeholder="John Doe" error={errors.name} />
               <Input label="Account Number *" value={form.accountNumber} onChange={e => set('accountNumber', e.target.value)}
                 placeholder="NEX1234567890" error={errors.accountNumber} disabled={!!editing} />
-              <Input label="Bank Name *" value={form.bankName} onChange={e => set('bankName', e.target.value)} placeholder="NexBank" error={errors.bankName} />
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="IFSC Code" value={form.ifscCode} onChange={e => set('ifscCode', e.target.value.toUpperCase())} placeholder="NEXB0001234" />
-                <Input label="Nickname" value={form.nickname} onChange={e => set('nickname', e.target.value)} placeholder="Friend, Landlord..." />
-              </div>
+              <Input
+                label="Nickname"
+                value={form.nickname}
+                onChange={e => set('nickname', e.target.value)}
+                placeholder="Friend, Landlord..."
+              />
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -182,6 +191,7 @@ export default function Beneficiaries() {
 }
 
 function BeneficiaryCard({ b, onEdit, onDelete, onFavorite }) {
+  const cardId = b._id || b.id;
   const initials = b.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   return (
     <div className="card p-4 flex flex-col gap-3 card-hover">
@@ -194,7 +204,7 @@ function BeneficiaryCard({ b, onEdit, onDelete, onFavorite }) {
             {b.nickname && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{b.nickname}</p>}
           </div>
         </div>
-        <button onClick={() => onFavorite(b._id)} className="p-1.5 rounded-lg transition-colors"
+        <button onClick={() => onFavorite(cardId)} className="p-1.5 rounded-lg transition-colors"
           style={{ color: b.isFavorite ? '#f59e0b' : 'var(--text-muted)' }}>
           <Star className="w-4 h-4" fill={b.isFavorite ? 'currentColor' : 'none'} />
         </button>
@@ -205,10 +215,6 @@ function BeneficiaryCard({ b, onEdit, onDelete, onFavorite }) {
           <span style={{ color: 'var(--text-muted)' }}>Account:</span>
           <span className="font-mono">{b.accountNumber}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Building2 className="w-3 h-3" style={{ color: 'var(--text-muted)' }} />
-          <span>{b.bankName}{b.ifscCode ? ` · ${b.ifscCode}` : ''}</span>
-        </div>
         <div style={{ color: 'var(--text-muted)' }}>Added {formatDate(b.createdAt)}</div>
       </div>
 
@@ -216,7 +222,7 @@ function BeneficiaryCard({ b, onEdit, onDelete, onFavorite }) {
         <button onClick={() => onEdit(b)} className="flex-1 btn-ghost text-xs flex items-center justify-center gap-1.5">
           <Pencil className="w-3 h-3" /> Edit
         </button>
-        <button onClick={() => onDelete(b._id, b.name)} className="flex-1 btn-ghost text-xs flex items-center justify-center gap-1.5"
+        <button onClick={() => onDelete(cardId, b.name)} className="flex-1 btn-ghost text-xs flex items-center justify-center gap-1.5"
           style={{ color: 'var(--danger)' }}>
           <Trash2 className="w-3 h-3" /> Delete
         </button>

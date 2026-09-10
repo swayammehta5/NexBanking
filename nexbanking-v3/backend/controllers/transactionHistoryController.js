@@ -1,42 +1,41 @@
-const Account     = require('../models/Account');
-const Transaction = require('../models/Transaction');
+const { prisma } = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
-const { matchesSearch }          = require('../utils/bankingUtils');
+const { matchesSearch } = require('../utils/bankingUtils');
+const { serialize } = require('../utils/serializers');
 
-/**
- * @desc  Get transaction history with search / filter / pagination
- * @route GET /api/transactions
- */
 const getTransactions = async (req, res) => {
   try {
     const { page = 1, limit = 10, type, search, startDate, endDate } = req.query;
 
-    const account = await Account.findOne({ userId: req.user._id });
+    const account = await prisma.account.findUnique({ where: { userId: req.user.id } });
     if (!account) return sendError(res, 404, 'Account not found');
 
-    const filter = { accountId: account._id };
-    if (type && type !== 'all') filter.type = type;
+    const where = { accountId: account.id };
+    if (type && type !== 'all') where.type = type;
     if (startDate || endDate) {
-      filter.createdAt = {};
-      if (startDate) filter.createdAt.$gte = new Date(startDate);
-      if (endDate)   filter.createdAt.$lte = new Date(endDate);
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) where.createdAt.lte = new Date(endDate);
     }
 
-    let transactions = await Transaction.find(filter).sort({ createdAt: -1 }).lean();
+    let transactions = await prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
 
-    if (search) transactions = transactions.filter(t => matchesSearch(t, search));
+    if (search) transactions = transactions.filter((t) => matchesSearch(t, search));
 
-    const total     = transactions.length;
-    const skip      = (parseInt(page) - 1) * parseInt(limit);
-    const paginated = transactions.slice(skip, skip + parseInt(limit));
+    const total = transactions.length;
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    const paginated = transactions.slice(skip, skip + parseInt(limit, 10));
 
     sendSuccess(res, 200, 'Transactions retrieved', {
-      transactions: paginated,
+      transactions: serialize(paginated),
       pagination: {
         total,
-        page:       parseInt(page),
-        limit:      parseInt(limit),
-        totalPages: Math.ceil(total / parseInt(limit)),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        totalPages: Math.ceil(total / parseInt(limit, 10)),
       },
     });
   } catch {
@@ -44,21 +43,20 @@ const getTransactions = async (req, res) => {
   }
 };
 
-/**
- * @desc  Get last 5 transactions for dashboard
- * @route GET /api/transactions/recent
- */
 const getRecentTransactions = async (req, res) => {
   try {
-    const account = await Account.findOne({ userId: req.user._id });
+    const account = await prisma.account.findUnique({ where: { userId: req.user.id } });
     if (!account) return sendError(res, 404, 'Account not found');
 
-    const transactions = await Transaction.find({ accountId: account._id })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean();
+    const transactions = await prisma.transaction.findMany({
+      where: { accountId: account.id },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
 
-    sendSuccess(res, 200, 'Recent transactions retrieved', { transactions });
+    sendSuccess(res, 200, 'Recent transactions retrieved', {
+      transactions: serialize(transactions),
+    });
   } catch {
     sendError(res, 500, 'Failed to retrieve recent transactions');
   }

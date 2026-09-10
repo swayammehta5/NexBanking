@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { prisma } = require('../config/db');
 const { sendError } = require('../utils/apiResponse');
 
 const protect = async (req, res, next) => {
@@ -14,11 +14,25 @@ const protect = async (req, res, next) => {
       return sendError(res, 401, 'Authentication required. Please log in.');
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Check user still exists
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        isFrozen: true,
+        createdAt: true,
+        updatedAt: true,
+        transactionPinHash: true,
+      },
+    });
+
     if (!user) {
       return sendError(res, 401, 'User no longer exists.');
     }
@@ -27,7 +41,21 @@ const protect = async (req, res, next) => {
       return sendError(res, 401, 'Account has been deactivated.');
     }
 
-    req.user = user;
+    // Expose user without hash; keep a flag only
+    req.user = {
+      id: user.id,
+      _id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isActive: user.isActive,
+      isFrozen: user.isFrozen,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      hasTransactionPin: Boolean(user.transactionPinHash),
+    };
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {

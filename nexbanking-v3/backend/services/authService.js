@@ -1,39 +1,40 @@
 const jwt = require('jsonwebtoken');
+const { serializeUser, serialize, toNumber } = require('../utils/serializers');
 
-/**
- * Sign a JWT for the given user ID
- */
-const signToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+const signToken = (id) =>
+  jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
-};
 
-/**
- * Create and send JWT token + user data
- */
 const createSendToken = (user, account, statusCode, res) => {
-  const token = signToken(user._id);
+  const token = signToken(user.id);
+  const safeUser = serializeUser(user);
 
   res.status(statusCode).json({
     success: true,
     token,
     data: {
       user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        createdAt: user.createdAt,
+        id: safeUser.id,
+        _id: safeUser.id,
+        firstName: safeUser.firstName,
+        lastName: safeUser.lastName,
+        email: safeUser.email,
+        phone: safeUser.phone,
+        role: safeUser.role,
+        hasTransactionPin: safeUser.hasTransactionPin,
+        createdAt: safeUser.createdAt,
       },
       account: account
         ? {
-            id: account._id,
+            id: account.id,
+            _id: account.id,
             accountNumber: account.accountNumber,
             accountType: account.accountType,
-            balance: account.balance,
+            balance: toNumber(account.balance),
             currency: account.currency,
+            totalDeposited: toNumber(account.totalDeposited),
+            totalWithdrawn: toNumber(account.totalWithdrawn),
           }
         : null,
     },

@@ -19,7 +19,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const isLogin = err.config?.url?.includes('/auth/login');
+    const isPinError =
+      /pin/i.test(err.response?.data?.message || '') ||
+      err.config?.url?.includes('/transaction-pin');
+
+    // Only redirect to login for true session / JWT authentication expiration
+    if (err.response?.status === 401 && !isLogin && !isPinError) {
       localStorage.removeItem('nex_token');
       localStorage.removeItem('nex_user');
       window.location.href = '/login';

@@ -1,42 +1,31 @@
-const Transaction = require('../models/Transaction');
-
-/**
- * fraudDetectionService.js
- * Rule-based fraud detection. Returns { isSuspicious, flags[] }.
- */
+const { prisma } = require('../config/db');
+const { toNumber } = require('../utils/serializers');
 
 const THRESHOLDS = {
-  largeAmount:          5000,   // single transaction >= this
-  rapidTransferCount:   5,      // >= this many transfers in window
-  rapidTransferWindow:  10,     // minutes
-  oddHourStart:         0,      // midnight
-  oddHourEnd:           5,      // 5 AM
-  rapidDepletionRate:   0.80,   // balance drops by >= 80% in one transaction
+  largeAmount: 5000,
+  rapidTransferCount: 5,
+  rapidTransferWindow: 10,
+  oddHourStart: 0,
+  oddHourEnd: 5,
+  rapidDepletionRate: 0.8,
 };
 
-/**
- * Analyse a transaction for fraud signals.
- * @param {Object} txn    - the new transaction (not yet saved)
- * @param {Object} account - the user's account
- * @returns {{ isSuspicious: boolean, flags: string[] }}
- */
 const analyseTransaction = async (txn, account) => {
   const flags = [];
+  const amount = toNumber(txn.amount);
+  const balance = toNumber(account.balance);
 
-  // 1. Very large amount
-  if (txn.amount >= THRESHOLDS.largeAmount) {
-    flags.push(`Large amount: $${txn.amount}`);
+  if (amount >= THRESHOLDS.largeAmount) {
+    flags.push(`Large amount: $${amount}`);
   }
 
-  // 2. Rapid balance depletion
-  if (account.balance > 0) {
-    const depletionRate = txn.amount / account.balance;
+  if (balance > 0) {
+    const depletionRate = amount / balance;
     if (depletionRate >= THRESHOLDS.rapidDepletionRate && txn.type !== 'deposit') {
       flags.push(`Rapid balance depletion: ${(depletionRate * 100).toFixed(0)}% of balance`);
     }
   }
 
-  // 3. Odd hour transaction (00:00 – 05:00)
   const hour = new Date().getHours();
   if (hour >= THRESHOLDS.oddHourStart && hour < THRESHOLDS.oddHourEnd) {
     if (['transfer_out', 'withdrawal'].includes(txn.type)) {
@@ -44,23 +33,21 @@ const analyseTransaction = async (txn, account) => {
     }
   }
 
-  // 4. Multiple transfers in short window
   if (txn.type === 'transfer_out') {
     const windowStart = new Date(Date.now() - THRESHOLDS.rapidTransferWindow * 60 * 1000);
-    const recentTransfers = await Transaction.countDocuments({
-      accountId: account._id,
-      type:      'transfer_out',
-      createdAt: { $gte: windowStart },
+    const recentTransfers = await prisma.transaction.count({
+      where: {
+        accountId: account.id,
+        type: 'transfer_out',
+        createdAt: { gte: windowStart },
+      },
     });
     if (recentTransfers >= THRESHOLDS.rapidTransferCount) {
       flags.push(`${recentTransfers} transfers in ${THRESHOLDS.rapidTransferWindow} minutes`);
     }
   }
 
-  return {
-    isSuspicious: flags.length > 0,
-    flags,
-  };
+  return { isSuspicious: flags.length > 0, flags };
 };
 
 module.exports = { analyseTransaction };

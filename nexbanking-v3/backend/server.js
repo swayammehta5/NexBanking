@@ -3,12 +3,11 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
 const compression = require('compression');
 const morgan = require('morgan');
 const fs = require('fs');
 
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 const { errorHandler, notFound } = require('./middleware/errorMiddleware');
 const logger = require('./utils/logger');
 
@@ -20,7 +19,6 @@ connectDB();
 
 // Security Middleware
 app.use(helmet());
-app.use(mongoSanitize());
 
 // CORS Configuration
 const allowedOrigins = [
@@ -31,13 +29,10 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow Postman, mobile apps, curl, etc.
       if (!origin) return callback(null, true);
-
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,

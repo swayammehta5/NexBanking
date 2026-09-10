@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Landmark, ArrowRight, User, Mail, Lock, Phone } from 'lucide-react';
+import { Eye, EyeOff, Landmark, ArrowRight, User, Mail, Lock, Phone, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/ui/ThemeToggle';
 import toast from 'react-hot-toast';
@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '', transactionPin: '' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
   const [errors, setErrors]     = useState({});
@@ -23,6 +23,9 @@ export default function Register() {
     else if (form.password.length < 6)         e.password = 'Minimum 6 characters';
     else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(form.password))
       e.password = 'Must include uppercase, lowercase, and a number';
+    if (form.transactionPin && !/^\d{4}$/.test(form.transactionPin)) {
+      e.transactionPin = 'Transaction PIN must be exactly 4 digits';
+    }
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -100,6 +103,31 @@ export default function Register() {
             {field('email',    'Email',    'email', 'you@example.com', Mail)}
             {field('phone',    'Phone (optional)', 'tel', '+1 234 567 8900', Phone)}
             {field('password', 'Password', 'password', '••••••••', Lock)}
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                4-Digit Transaction PIN (optional)
+              </label>
+              <div className="relative">
+                <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={form.transactionPin}
+                  onChange={e => setForm({ ...form, transactionPin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  placeholder="••••"
+                  className={`input-field pl-10 font-mono tracking-widest ${errors.transactionPin ? 'input-error' : ''}`}
+                />
+              </div>
+              {errors.transactionPin ? (
+                <p className="text-xs" style={{ color: 'var(--danger)' }}>{errors.transactionPin}</p>
+              ) : (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Can also be configured later in Profile
+                </p>
+              )}
+            </div>
 
             <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
               {loading

@@ -11,3 +11,32 @@
 [2026-07-21 15:12:56] [32minfo[39m: 🌍 Environment: development
 [2026-07-21 15:12:57] [32minfo[39m: ✅ MongoDB Atlas Connected: ac-astrsol-shard-00-01.mlyrwfe.mongodb.net
 [2026-07-21 15:14:16] [32minfo[39m: User logged in: mehtaswayam555@gmail.com
+[2026-08-23 00:45:45] [32minfo[39m: 🚀 NexBanking API running on port 5000
+[2026-08-23 00:45:45] [32minfo[39m: 🌍 Environment: development
+[2026-08-23 00:45:48] [32minfo[39m: ✅ MongoDB Atlas Connected: ac-astrsol-shard-00-02.mlyrwfe.mongodb.net
+[2026-08-23 00:49:36] [31merror[39m: 404 - Route not found: / - / - GET
+[2026-08-23 00:49:37] [31merror[39m: 404 - Route not found: /favicon.ico - /favicon.ico - GET
+[2026-08-23 00:58:59] [32minfo[39m: 🚀 NexBanking API running on port 5000
+[2026-08-23 00:58:59] [32minfo[39m: 🌍 Environment: development
+[2026-08-23 00:59:02] [32minfo[39m: ✅ MongoDB Atlas Connected: ac-astrsol-shard-00-01.mlyrwfe.mongodb.net
+[2026-08-23 00:59:40] [32minfo[39m: User logged in: mehtaswayam555@gmail.com
+[2026-08-23 01:04:16] [32minfo[39m: 🚀 NexBanking API running on port 5000
+[2026-08-23 01:04:16] [32minfo[39m: 🌍 Environment: development
+[2026-08-23 01:04:17] [32minfo[39m: ✅ MongoDB Atlas Connected: ac-astrsol-shard-00-00.mlyrwfe.mongodb.net
+[2026-09-10 14:16:44] [32minfo[39m: 🚀 NexBanking API running on port 5000
+[2026-09-10 14:16:44] [32minfo[39m: 🌍 Environment: development
+[2026-09-10 14:16:48] [31merror[39m: PostgreSQL connection failed: Can't reach database server at `localhost:5432`
+
+Please make sure your database server is running at `localhost:5432`.
+[2026-09-10 14:59:32] [32minfo[39m: 🚀 NexBanking API running on port 5000
+[2026-09-10 14:59:32] [32minfo[39m: 🌍 Environment: development
+[2026-09-10 14:59:33] [32minfo[39m: ✅ PostgreSQL connected via Prisma
+[2026-09-10 14:59:49] [31merror[39m: 404 - Route not found: /favicon.ico - /favicon.ico - GET
+[2026-09-10 15:01:25] [32minfo[39m: New user registered: mehtaswayam555@gmail.com
+[2026-09-10 15:02:58] [32minfo[39m: Deposit: mehtaswayam555@gmail.com +$10000
+[2026-09-10 15:05:18] [32minfo[39m: New user registered: abhilakshkotwal123@gmail.com
+[2026-09-10 15:05:56] [32minfo[39m: Deposit: abhilakshkotwal123@gmail.com +$25679
+[2026-09-10 15:06:25] [32minfo[39m: Transfer: abhilakshkotwal123@gmail.com → NEX1262636615 $2000
+[2026-09-10 15:30:50] [32minfo[39m: 🚀 NexBanking API running on port 5000
+[2026-09-10 15:30:50] [32minfo[39m: 🌍 Environment: development
+[2026-09-10 15:30:51] [32minfo[39m: ✅ PostgreSQL connected via Prisma

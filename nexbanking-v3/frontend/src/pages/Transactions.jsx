@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CheckCircle, Star } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CheckCircle, Star, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { formatCurrency } from '../utils/format';
 import { Input } from '../components/ui';
+import TransactionPinModal from '../components/TransactionPinModal';
 import toast from 'react-hot-toast';
 
 const TABS = [
@@ -14,8 +15,9 @@ const TABS = [
 ];
 
 export default function Transactions() {
-  const { account, fetchAccount } = useAuth();
+  const { account, fetchAccount, user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [tab, setTab]       = useState(location.state?.tab || 'deposit');
   const [form, setForm]     = useState({ amount: '', description: '', recipientAccountNumber: '' });
   const [errors, setErrors] = useState({});
@@ -23,6 +25,8 @@ export default function Transactions() {
   const [lastTxn, setLastTxn] = useState(null);
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState(null);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pinError, setPinError] = useState('');
 
   useEffect(() => { if (location.state?.tab) setTab(location.state.tab); }, [location.state]);
 
@@ -53,16 +57,30 @@ export default function Transactions() {
     return !Object.keys(e).length;
   };
 
-  const handleSubmit = async (ev) => {
+  const handleSubmit = (ev) => {
     ev.preventDefault();
     if (!validate()) return;
-    setLoading(true); setLastTxn(null);
+    if (!user?.hasTransactionPin) {
+      toast.error('Set your transaction PIN in Profile → Security before making transactions');
+      navigate('/profile');
+      return;
+    }
+    setPinError('');
+    setPinOpen(true);
+  };
+
+  const executeTransaction = async (transactionPin) => {
+    setLoading(true);
+    setPinError('');
+    setLastTxn(null);
     try {
       const payload = {
-        amount: parseFloat(form.amount), description: form.description,
+        amount: parseFloat(form.amount),
+        description: form.description,
+        transactionPin,
         ...(tab === 'transfer' && {
           recipientAccountNumber: form.recipientAccountNumber,
-          beneficiaryId: selectedBeneficiary?._id,
+          beneficiaryId: selectedBeneficiary?._id || selectedBeneficiary?.id,
         }),
       };
       const res = await api.post(`/transactions/${tab}`, payload);
@@ -70,10 +88,19 @@ export default function Transactions() {
       setLastTxn(res.data.data);
       setForm({ amount: '', description: '', recipientAccountNumber: '' });
       setSelectedBeneficiary(null);
+      setPinOpen(false);
       fetchAccount();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Transaction failed');
-    } finally { setLoading(false); }
+      const msg = err.response?.data?.message || 'Transaction failed';
+      if (/pin/i.test(msg)) {
+        setPinError(msg);
+      } else {
+        setPinOpen(false);
+        toast.error(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,7 +110,21 @@ export default function Transactions() {
         <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Deposit, withdraw, or transfer funds</p>
       </div>
 
-      {/* Balance */}
+      {!user?.hasTransactionPin && (
+        <div className="card p-4 flex items-start gap-3" style={{ borderColor: 'var(--danger)' }}>
+          <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" style={{ color: 'var(--danger)' }} />
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Transaction PIN required</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              You must set a 4-digit transaction PIN before depositing, withdrawing, or transferring.
+            </p>
+            <button type="button" className="btn-primary mt-3 text-sm py-1.5 px-3" onClick={() => navigate('/profile')}>
+              Set PIN in Profile
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="card px-5 py-4 flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: 'var(--text-muted)' }}>Available Balance</p>
@@ -92,7 +133,6 @@ export default function Transactions() {
         <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{account?.accountNumber}</p>
       </div>
 
-      {/* Tabs */}
       <div className="flex rounded-xl overflow-hidden p-1 gap-1" style={{ background: 'var(--bg-input)' }}>
         {TABS.map(({ id, label, icon: Icon, color }) => (
           <button key={id} onClick={() => { setTab(id); setErrors({}); setLastTxn(null); setSelectedBeneficiary(null); }}
@@ -103,7 +143,6 @@ export default function Transactions() {
         ))}
       </div>
 
-      {/* Form */}
       <div className="card p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Amount" prefix="$" type="number" min="0.01" step="0.01"
@@ -112,18 +151,17 @@ export default function Transactions() {
 
           {tab === 'transfer' && (
             <>
-              {/* Beneficiary dropdown */}
               {beneficiaries.length > 0 && (
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Select Beneficiary</label>
                   <div className="grid gap-2 max-h-44 overflow-y-auto">
                     {beneficiaries.map(b => (
-                      <button key={b._id} type="button"
+                      <button key={b._id || b.id} type="button"
                         onClick={() => selectBeneficiary(b)}
                         className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all"
                         style={{
-                          background: selectedBeneficiary?._id === b._id ? 'var(--accent-glow)' : 'var(--bg-input)',
-                          border: `1px solid ${selectedBeneficiary?._id === b._id ? 'var(--accent)' : 'var(--border)'}`,
+                          background: (selectedBeneficiary?._id || selectedBeneficiary?.id) === (b._id || b.id) ? 'var(--accent-glow)' : 'var(--bg-input)',
+                          border: `1px solid ${(selectedBeneficiary?._id || selectedBeneficiary?.id) === (b._id || b.id) ? 'var(--accent)' : 'var(--border)'}`,
                         }}>
                         <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                           style={{ background: 'var(--accent)' }}>
@@ -131,7 +169,9 @@ export default function Transactions() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{b.name}</p>
-                          <p className="text-xs font-mono truncate" style={{ color: 'var(--text-muted)' }}>{b.accountNumber}</p>
+                          <p className="text-xs font-mono truncate" style={{ color: 'var(--text-muted)' }}>
+                            {b.accountNumber}
+                          </p>
                         </div>
                         {b.isFavorite && <Star className="w-3.5 h-3.5 shrink-0" fill="currentColor" style={{ color: '#f59e0b' }} />}
                       </button>
@@ -161,7 +201,6 @@ export default function Transactions() {
         </form>
       </div>
 
-      {/* Success */}
       {lastTxn && (
         <div className="card p-5 animate-slide-up" style={{ borderColor: 'var(--success)', borderWidth: 1 }}>
           <div className="flex items-center gap-2 mb-3">
@@ -182,6 +221,14 @@ export default function Transactions() {
           </div>
         </div>
       )}
+
+      <TransactionPinModal
+        open={pinOpen}
+        loading={loading}
+        error={pinError}
+        onCancel={() => { if (!loading) { setPinOpen(false); setPinError(''); } }}
+        onConfirm={executeTransaction}
+      />
     </div>
   );
 }
