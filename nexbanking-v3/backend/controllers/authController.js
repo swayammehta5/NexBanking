@@ -13,18 +13,26 @@ const logger = require('../utils/logger');
 
 const register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, phone, transactionPin } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      phone,
+      transactionPin,
+      confirmTransactionPin,
+    } = req.body;
 
     const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existing) return sendError(res, 400, 'An account with this email already exists');
 
-    let pinHash = null;
-    if (transactionPin !== undefined && transactionPin !== null && transactionPin !== '') {
-      if (!isValidPinFormat(String(transactionPin))) {
-        return sendError(res, 400, 'Transaction PIN must be exactly 4 digits');
-      }
-      pinHash = await hashTransactionPin(String(transactionPin));
+    if (!isValidPinFormat(String(transactionPin || ''))) {
+      return sendError(res, 400, 'Transaction PIN must be exactly 4 digits');
     }
+    if (String(transactionPin) !== String(confirmTransactionPin)) {
+      return sendError(res, 400, 'Transaction PIN and confirmation do not match');
+    }
+    const pinHash = await hashTransactionPin(String(transactionPin));
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -51,9 +59,7 @@ const register = async (req, res) => {
     });
 
     await logActivity(result.user.id, 'login', 'Account created', {}, req);
-    if (pinHash) {
-      await logActivity(result.user.id, 'pin_set', 'Transaction PIN set during registration', {}, req);
-    }
+    await logActivity(result.user.id, 'pin_set', 'Transaction PIN set during registration', {}, req);
 
     logger.info(`New user registered: ${result.user.email}`);
     createSendToken(result.user, result.account, 201, res);

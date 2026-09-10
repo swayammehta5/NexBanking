@@ -26,6 +26,15 @@ const registerValidators = [
     .isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .withMessage('Password must contain uppercase, lowercase, and a number'),
+  body('transactionPin')
+    .exists({ values: 'falsy' }).withMessage('Transaction PIN is required')
+    .isString().withMessage('Transaction PIN must be exactly 4 digits')
+    .matches(/^\d{4}$/).withMessage('Transaction PIN must be exactly 4 digits'),
+  body('confirmTransactionPin')
+    .exists({ values: 'falsy' }).withMessage('Transaction PIN confirmation is required')
+    .isString().withMessage('Transaction PIN confirmation must be exactly 4 digits')
+    .custom((value, { req }) => value === req.body.transactionPin)
+    .withMessage('Transaction PIN and confirmation do not match'),
   handleValidationErrors,
 ];
 

@@ -21,10 +21,15 @@ connectDB();
 app.use(helmet());
 
 // CORS Configuration
+const isProduction = process.env.NODE_ENV === 'production';
+const configuredClientUrl = process.env.CLIENT_URL;
+
+// Localhost is useful for development but must never become a production CORS
+// origin. Render's CLIENT_URL must point at the deployed frontend origin.
 const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.CLIENT_URL,
-].filter(Boolean);
+  !isProduction && 'http://localhost:5173',
+  configuredClientUrl,
+].filter((origin) => origin && (!isProduction || !/^https?:\/\/localhost(?::\d+)?$/i.test(origin)));
 
 app.use(
   cors({
